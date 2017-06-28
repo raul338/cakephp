@@ -1,16 +1,16 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Core\Configure\Engine;
 
@@ -96,7 +96,7 @@ class JsonConfigTest extends TestCase
      * Test reading an empty file.
      *
      * @expectedException \Cake\Core\Exception\Exception
-     * @expcetedExceptionMessage Decoding JSON config file "empty.json" did not return any array
+     * @expectedExceptionMessage config file "empty.json"
      * @return void
      */
     public function testReadEmptyFile()
@@ -154,7 +154,7 @@ class JsonConfigTest extends TestCase
     {
         $engine = new JsonConfig(TMP);
         $result = $engine->dump('test', $this->testData);
-        $this->assertTrue($result > 0);
+        $this->assertGreaterThan(0, $result);
         $expected = '{
     "One": {
         "two": "value",
@@ -176,7 +176,7 @@ class JsonConfigTest extends TestCase
         $this->assertTextEquals($expected, $contents);
 
         $result = $engine->dump('test', $this->testData);
-        $this->assertTrue($result > 0);
+        $this->assertGreaterThan(0, $result);
 
         $contents = file_get_contents($file);
         $this->assertTextEquals($expected, $contents);

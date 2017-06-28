@@ -1,16 +1,16 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         1.2.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Error;
 
@@ -19,10 +19,10 @@ use Cake\Core\Plugin;
 use Cake\Error;
 use Cake\Error\ErrorHandler;
 use Cake\Error\PHP7ErrorException;
+use Cake\Http\ServerRequest;
 use Cake\Log\Log;
 use Cake\Network\Exception\ForbiddenException;
 use Cake\Network\Exception\NotFoundException;
-use Cake\Network\Request;
 use Cake\Routing\Exception\MissingControllerException;
 use Cake\Routing\Router;
 use Cake\TestSuite\TestCase;
@@ -37,7 +37,7 @@ class TestErrorHandler extends ErrorHandler
     /**
      * Access the response used.
      *
-     * @var \Cake\Network\Response
+     * @var \Cake\Http\Response
      */
     public $response;
 
@@ -80,7 +80,7 @@ class ErrorHandlerTest extends TestCase
         parent::setUp();
         Router::reload();
 
-        $request = new Request();
+        $request = new ServerRequest();
         $request->base = '';
         $request->env('HTTP_REFERER', '/referer');
 
@@ -178,7 +178,7 @@ class ErrorHandlerTest extends TestCase
         @include 'invalid.file';
         //@codingStandardsIgnoreEnd
         $result = ob_get_clean();
-        $this->assertTrue(empty($result));
+        $this->assertEmpty($result);
     }
 
     /**

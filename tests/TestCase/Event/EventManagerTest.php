@@ -1,16 +1,16 @@
 <?php
 /**
- * CakePHP : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP Project
  * @since         2.1.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Event;
 
@@ -405,10 +405,6 @@ class EventManagerTest extends TestCase
      */
     public function testDispatchReturnValue()
     {
-        $this->skipIf(
-            version_compare(\PHPUnit_Runner_Version::id(), '3.7', '<'),
-            'These tests fail in PHPUnit 3.6'
-        );
         $manager = new EventManager;
         $listener = $this->getMockBuilder(__NAMESPACE__ . '\EventTestListener')
             ->getMock();
@@ -425,6 +421,7 @@ class EventManagerTest extends TestCase
             ->method('listenerFunction')
             ->with($event);
         $manager->dispatch($event);
+        $this->assertEquals('something special', $event->result());
         $this->assertEquals('something special', $event->result);
     }
 
@@ -436,11 +433,6 @@ class EventManagerTest extends TestCase
      */
     public function testDispatchFalseStopsEvent()
     {
-        $this->skipIf(
-            version_compare(\PHPUnit_Runner_Version::id(), '3.7', '<'),
-            'These tests fail in PHPUnit 3.6'
-        );
-
         $manager = new EventManager();
         $listener = $this->getMockBuilder(__NAMESPACE__ . '\EventTestListener')
             ->getMock();
@@ -684,10 +676,12 @@ class EventManagerTest extends TestCase
 
     /**
      * test callback
+     *
+     * @param Event $event
      */
-    public function onMyEvent($event)
+    public function onMyEvent(Event $event)
     {
-        $event->data['callback'] = 'ok';
+        $event->setData('callback', 'ok');
     }
 
     /**
@@ -698,11 +692,11 @@ class EventManagerTest extends TestCase
     public function testDispatchLocalHandledByGlobal()
     {
         $callback = [$this, 'onMyEvent'];
-        EventManager::instance()->attach($callback, 'my_event');
+        EventManager::instance()->on('my_event', $callback);
         $manager = new EventManager();
         $event = new Event('my_event', $manager);
         $manager->dispatch($event);
-        $this->assertEquals('ok', $event->data['callback']);
+        $this->assertEquals('ok', $event->data('callback'));
     }
 
     /**
@@ -715,10 +709,10 @@ class EventManagerTest extends TestCase
     public function testDispatchWithGlobalAndLocalEvents()
     {
         $listener = new CustomTestEventListenerInterface();
-        EventManager::instance()->attach($listener);
+        EventManager::instance()->on($listener);
         $listener2 = new EventTestListener();
         $manager = new EventManager();
-        $manager->attach([$listener2, 'listenerFunction'], 'fake.event');
+        $manager->on('fake.event', [$listener2, 'listenerFunction']);
 
         $manager->dispatch(new Event('fake.event', $this));
         $this->assertEquals(['listenerFunction'], $listener->callList);
@@ -759,5 +753,125 @@ class EventManagerTest extends TestCase
 
         $result = $manager->getEventList();
         $this->assertNull($result);
+    }
+
+    /**
+     * Test that locally dispatched events are also added to the global manager's event list
+     *
+     * @return void
+     * @triggers Event $this
+     */
+    public function testGetLocallyDispatchedEventsFromGlobal()
+    {
+        $localList = new EventList();
+        $globalList = new EventList();
+
+        $globalManager = EventManager::instance();
+        $globalManager->setEventList($globalList);
+
+        $localManager = new EventManager();
+        $localManager->setEventList($localList);
+
+        $globalEvent = new Event('GlobalEvent', $this);
+        $globalManager->dispatch($globalEvent);
+
+        $localEvent = new Event('LocalEvent', $this);
+        $localManager->dispatch($localEvent);
+
+        $this->assertTrue($globalList->hasEvent('GlobalEvent'));
+        $this->assertFalse($localList->hasEvent('GlobalEvent'));
+        $this->assertTrue($localList->hasEvent('LocalEvent'));
+        $this->assertTrue($globalList->hasEvent('LocalEvent'));
+    }
+
+    /**
+     * Test isTrackingEvents
+     *
+     * @return void
+     */
+    public function testIsTrackingEvents()
+    {
+        $this->assertFalse(EventManager::instance()->isTrackingEvents());
+
+        $manager = new EventManager();
+        $manager->setEventList(new EventList());
+
+        $this->assertTrue($manager->isTrackingEvents());
+
+        $manager->trackEvents(false);
+
+        $this->assertFalse($manager->isTrackingEvents());
+    }
+
+    public function testDebugInfo()
+    {
+        $eventManager = new EventManager();
+
+        $this->assertSame(
+            [
+                '_listeners' => [],
+                '_isGlobal' => false,
+                '_eventList' => null,
+                '_trackEvents' => false,
+                '_generalManager' => '(object) EventManager',
+            ],
+            $eventManager->__debugInfo()
+        );
+
+        $func = function () {
+        };
+        $eventManager->on('foo', $func);
+
+        $this->assertSame(
+            [
+                '_listeners' => [
+                    'foo' => '1 listener(s)',
+                ],
+                '_isGlobal' => false,
+                '_eventList' => null,
+                '_trackEvents' => false,
+                '_generalManager' => '(object) EventManager',
+            ],
+            $eventManager->__debugInfo()
+        );
+
+        $eventManager->off('foo', $func);
+
+        $this->assertSame(
+            [
+                '_listeners' => [
+                    'foo' => '0 listener(s)',
+                ],
+                '_isGlobal' => false,
+                '_eventList' => null,
+                '_trackEvents' => false,
+                '_generalManager' => '(object) EventManager',
+            ],
+            $eventManager->__debugInfo()
+        );
+
+        $eventManager->on('bar', function () {
+        });
+        $eventManager->on('bar', function () {
+        });
+        $eventManager->on('bar', function () {
+        });
+        $eventManager->on('baz', function () {
+        });
+
+        $this->assertSame(
+            [
+                '_listeners' => [
+                    'foo' => '0 listener(s)',
+                    'bar' => '3 listener(s)',
+                    'baz' => '1 listener(s)',
+                ],
+                '_isGlobal' => false,
+                '_eventList' => null,
+                '_trackEvents' => false,
+                '_generalManager' => '(object) EventManager',
+            ],
+            $eventManager->__debugInfo()
+        );
     }
 }

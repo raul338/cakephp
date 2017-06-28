@@ -1,23 +1,22 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.3.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Routing\Middleware;
 
 use Cake\Routing\Middleware\RoutingMiddleware;
 use Cake\Routing\Router;
 use Cake\TestSuite\TestCase;
-use Zend\Diactoros\Request;
 use Zend\Diactoros\Response;
 use Zend\Diactoros\ServerRequestFactory;
 
@@ -47,6 +46,8 @@ class RoutingMiddlewareTest extends TestCase
     {
         Router::redirect('/testpath', '/pages');
         $request = ServerRequestFactory::fromGlobals(['REQUEST_URI' => '/testpath']);
+        $request = $request->withAttribute('base', '/subdir');
+
         $response = new Response();
         $next = function ($req, $res) {
         };
@@ -54,7 +55,7 @@ class RoutingMiddlewareTest extends TestCase
         $response = $middleware($request, $response, $next);
 
         $this->assertEquals(301, $response->getStatusCode());
-        $this->assertEquals('http://localhost/pages', $response->getHeaderLine('Location'));
+        $this->assertEquals('http://localhost/subdir/pages', $response->getHeaderLine('Location'));
     }
 
     /**
@@ -127,6 +128,43 @@ class RoutingMiddlewareTest extends TestCase
         $request = ServerRequestFactory::fromGlobals(['REQUEST_URI' => '/missing']);
         $response = new Response();
         $next = function ($req, $res) {
+        };
+        $middleware = new RoutingMiddleware();
+        $middleware($request, $response, $next);
+    }
+
+    /**
+     * Test route with _method being parsed correctly.
+     *
+     * @return void
+     */
+    public function testFakedRequestMethodParsed()
+    {
+        Router::connect('/articles-patch', [
+            'controller' => 'Articles',
+            'action' => 'index',
+            '_method' => 'PATCH'
+        ]);
+        $request = ServerRequestFactory::fromGlobals(
+            [
+                'REQUEST_METHOD' => 'POST',
+                'REQUEST_URI' => '/articles-patch'
+            ],
+            null,
+            ['_method' => 'PATCH']
+        );
+        $response = new Response();
+        $next = function ($req, $res) {
+            $expected = [
+                'controller' => 'Articles',
+                'action' => 'index',
+                '_method' => 'PATCH',
+                'plugin' => null,
+                'pass' => [],
+                '_matchedRoute' => '/articles-patch'
+            ];
+            $this->assertEquals($expected, $req->getAttribute('params'));
+            $this->assertEquals('PATCH', $req->getMethod());
         };
         $middleware = new RoutingMiddleware();
         $middleware($request, $response, $next);

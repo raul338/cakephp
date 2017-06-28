@@ -1,20 +1,21 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.3.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Shell;
 
 use Cake\Cache\Cache;
+use Cake\Console\Exception\StopException;
 use Cake\Shell\CacheShell;
 use Cake\TestSuite\TestCase;
 
@@ -34,7 +35,7 @@ class CacheShellTest extends TestCase
         parent::setUp();
         $this->io = $this->getMockBuilder('Cake\Console\ConsoleIo')->getMock();
         $this->shell = new CacheShell($this->io);
-        Cache::config('test', ['engine' => 'File', 'path' => TMP]);
+        Cache::config('test', ['engine' => 'File', 'path' => CACHE]);
     }
 
     /**
@@ -67,7 +68,7 @@ class CacheShellTest extends TestCase
      */
     public function testClearInvalidPrefix()
     {
-        $this->setExpectedException('Cake\Console\Exception\StopException');
+        $this->expectException(StopException::class);
         $this->shell->clear('foo');
     }
 

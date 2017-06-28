@@ -1,16 +1,16 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\ORM\Association;
 
@@ -49,7 +49,7 @@ class HasManyTest extends TestCase
         $this->author = TableRegistry::get('Authors', [
             'schema' => [
                 'id' => ['type' => 'integer'],
-                'username' => ['type' => 'string'],
+                'name' => ['type' => 'string'],
                 '_constraints' => [
                     'primary' => ['type' => 'primary', 'columns' => ['id']]
                 ]
@@ -95,11 +95,26 @@ class HasManyTest extends TestCase
     }
 
     /**
-     * Test that foreignKey generation ignores database names in target table.
+     * Tests that foreignKey() returns the correct configured value
      *
      * @return void
      */
     public function testForeignKey()
+    {
+        $assoc = new HasMany('Articles', [
+            'sourceTable' => $this->author
+        ]);
+        $this->assertEquals('author_id', $assoc->foreignKey());
+        $this->assertEquals('another_key', $assoc->foreignKey('another_key'));
+        $this->assertEquals('another_key', $assoc->foreignKey());
+    }
+
+    /**
+     * Test that foreignKey generation ignores database names in target table.
+     *
+     * @return void
+     */
+    public function testForeignKeyIgnoreDatabaseName()
     {
         $this->author->table('schema.authors');
         $assoc = new HasMany('Articles', [
@@ -641,5 +656,88 @@ class HasManyTest extends TestCase
             }
         }
         $this->assertEquals($expected, $query->clause('select'));
+    }
+
+    /**
+     * Tests that unlinking calls the right methods
+     *
+     * @return void
+     */
+    public function testUnlinkSuccess()
+    {
+        $articles = TableRegistry::get('Articles');
+        $assoc = $this->author->hasMany('Articles', [
+            'sourceTable' => $this->author,
+            'targetTable' => $articles
+        ]);
+
+        $entity = $this->author->get(1, ['contain' => 'Articles']);
+        $initial = $entity->articles;
+        $this->assertCount(2, $initial);
+
+        $assoc->unlink($entity, $entity->articles);
+        $this->assertEmpty($entity->get('articles'), 'Property should be empty');
+
+        $new = $this->author->get(2, ['contain' => 'Articles']);
+        $this->assertCount(0, $new->articles, 'DB should be clean');
+        $this->assertSame(4, $this->author->find()->count(), 'Authors should still exist');
+        $this->assertSame(3, $articles->find()->count(), 'Articles should still exist');
+    }
+
+    /**
+     * Tests that unlink with an empty array does nothing
+     *
+     * @return void
+     */
+    public function testUnlinkWithEmptyArray()
+    {
+        $articles = TableRegistry::get('Articles');
+        $assoc = $this->author->hasMany('Articles', [
+            'sourceTable' => $this->author,
+            'targetTable' => $articles
+        ]);
+
+        $entity = $this->author->get(1, ['contain' => 'Articles']);
+        $initial = $entity->articles;
+        $this->assertCount(2, $initial);
+
+        $assoc->unlink($entity, []);
+
+        $new = $this->author->get(1, ['contain' => 'Articles']);
+        $this->assertCount(2, $new->articles, 'Articles should remain linked');
+        $this->assertSame(4, $this->author->find()->count(), 'Authors should still exist');
+        $this->assertSame(3, $articles->find()->count(), 'Articles should still exist');
+    }
+
+    /**
+     * Tests that link only uses a single database transaction
+     *
+     * @return void
+     */
+    public function testLinkUsesSingleTransaction()
+    {
+        $articles = TableRegistry::get('Articles');
+        $assoc = $this->author->hasMany('Articles', [
+            'sourceTable' => $this->author,
+            'targetTable' => $articles
+        ]);
+
+        // Ensure author in fixture has zero associated articles
+        $entity = $this->author->get(2, ['contain' => 'Articles']);
+        $initial = $entity->articles;
+        $this->assertCount(0, $initial);
+
+        // Ensure that after each model is saved, we are still within a transaction.
+        $listenerAfterSave = function ($e, $entity, $options) use ($articles) {
+            $this->assertTrue($articles->connection()->inTransaction(), 'Multiple transactions used to save associated models.');
+        };
+        $articles->eventManager()->on('Model.afterSave', $listenerAfterSave);
+
+        $options = ['atomic' => false];
+        $assoc->link($entity, $articles->find('all')->toArray(), $options);
+
+        // Ensure that link was successful.
+        $new = $this->author->get(2, ['contain' => 'Articles']);
+        $this->assertCount(3, $new->articles);
     }
 }

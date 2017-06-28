@@ -1,25 +1,24 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Http\Client\Adapter;
 
 use Cake\Core\Exception\Exception;
-use Cake\Http\Client\FormData;
 use Cake\Http\Client\Request;
 use Cake\Http\Client\Response;
 
 /**
- * Implements sending Cake\Network\Http\Request
+ * Implements sending Cake\Http\Client\Request
  * via php's stream API.
  *
  * This approach and implementation is partly inspired by Aura.Http
@@ -30,7 +29,7 @@ class Stream
     /**
      * Context resource used by the stream API.
      *
-     * @var resource
+     * @var resource|null
      */
     protected $_context;
 
@@ -51,7 +50,7 @@ class Stream
     /**
      * The stream resource.
      *
-     * @var resource
+     * @var resource|null
      */
     protected $_stream;
 
@@ -65,14 +64,14 @@ class Stream
     /**
      * Send a request and get a response back.
      *
-     * @param \Cake\Network\Http\Request $request The request object to send.
+     * @param \Cake\Http\Client\Request $request The request object to send.
      * @param array $options Array of options for the stream.
      * @return array Array of populated Response objects
      */
     public function send(Request $request, array $options)
     {
         $this->_stream = null;
-        $this->_context = [];
+        $this->_context = null;
         $this->_contextOptions = [];
         $this->_sslContextOptions = [];
         $this->_connectionErrors = [];
@@ -114,7 +113,7 @@ class Stream
     /**
      * Build the stream context out of the request object.
      *
-     * @param \Cake\Network\Http\Request $request The request to build context from.
+     * @param \Cake\Http\Client\Request $request The request to build context from.
      * @param array $options Additional request options.
      * @return void
      */
@@ -140,7 +139,7 @@ class Stream
      *
      * Creates cookies & headers.
      *
-     * @param \Cake\Network\Http\Request $request The request being sent.
+     * @param \Cake\Http\Client\Request $request The request being sent.
      * @param array $options Array of options to use.
      * @return void
      */
@@ -148,7 +147,7 @@ class Stream
     {
         $headers = [];
         foreach ($request->getHeaders() as $name => $values) {
-            $headers[] = sprintf('%s: %s', $name, implode(", ", $values));
+            $headers[] = sprintf('%s: %s', $name, implode(', ', $values));
         }
 
         $cookies = [];
@@ -165,9 +164,9 @@ class Stream
      * Builds the request content based on the request object.
      *
      * If the $request->body() is a string, it will be used as is.
-     * Array data will be processed with Cake\Network\Http\FormData
+     * Array data will be processed with Cake\Http\Client\FormData
      *
-     * @param \Cake\Network\Http\Request $request The request being sent.
+     * @param \Cake\Http\Client\Request $request The request being sent.
      * @param array $options Array of options to use.
      * @return void
      */
@@ -186,7 +185,7 @@ class Stream
     /**
      * Build miscellaneous options for the request.
      *
-     * @param \Cake\Network\Http\Request $request The request being sent.
+     * @param \Cake\Http\Client\Request $request The request being sent.
      * @param array $options Array of options to use.
      * @return void
      */
@@ -203,6 +202,7 @@ class Stream
             $this->_contextOptions['max_redirects'] = (int)$options['redirect'];
         }
         if (isset($options['proxy']['proxy'])) {
+            $this->_contextOptions['request_fulluri'] = true;
             $this->_contextOptions['proxy'] = $options['proxy']['proxy'];
         }
     }
@@ -210,7 +210,7 @@ class Stream
     /**
      * Build SSL options for the request.
      *
-     * @param \Cake\Network\Http\Request $request The request being sent.
+     * @param \Cake\Http\Client\Request $request The request being sent.
      * @param array $options Array of options to use.
      * @return void
      */
@@ -244,7 +244,7 @@ class Stream
     /**
      * Open the stream and send the request.
      *
-     * @param \Cake\Network\Http\Request $request The request object.
+     * @param \Cake\Http\Client\Request $request The request object.
      * @return array Array of populated Response objects
      * @throws \Cake\Core\Exception\Exception
      */
@@ -320,3 +320,6 @@ class Stream
         return array_merge($this->_contextOptions, $this->_sslContextOptions);
     }
 }
+
+// @deprecated Add backwards compat alias.
+class_alias('Cake\Http\Client\Adapter\Stream', 'Cake\Network\Http\Adapter\Stream');

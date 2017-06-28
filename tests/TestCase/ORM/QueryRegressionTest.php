@@ -1,20 +1,24 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\ORM;
 
 use Cake\Core\Plugin;
+use Cake\Database\Expression\Comparison;
+use Cake\Database\Expression\QueryExpression;
+use Cake\Datasource\EntityInterface;
+use Cake\Event\Event;
 use Cake\I18n\Time;
 use Cake\ORM\TableRegistry;
 use Cake\TestSuite\TestCase;
@@ -88,6 +92,74 @@ class QueryRegressionTest extends TestCase
     }
 
     /**
+     * Tests that eagerloading associations with aliased fields works.
+     *
+     * @return void
+     */
+    public function testEagerLoadingAliasedAssociationFields()
+    {
+        $this->loadFixtures('Articles', 'Authors');
+        $table = TableRegistry::get('Articles');
+        $table->belongsTo('Authors', [
+            'foreignKey' => 'author_id'
+        ]);
+        $result = $table->find()
+            ->contain(['Authors' => [
+                'fields' => [
+                    'id',
+                    'Authors__aliased_name' => 'name'
+                ]
+            ]])
+            ->where(['Articles.id' => 1])
+            ->first();
+        $this->assertInstanceOf(EntityInterface::class, $result);
+        $this->assertInstanceOf(EntityInterface::class, $result->author);
+        $this->assertSame('mariano', $result->author->aliased_name);
+    }
+
+    /**
+     * Tests that eagerloading and hydration works for associations that have
+     * different aliases in the association and targetTable
+     *
+     * @return void
+     */
+    public function testEagerLoadingMismatchingAliasInBelongsTo()
+    {
+        $this->loadFixtures('Articles', 'Users');
+        $table = TableRegistry::get('Articles');
+        $users = TableRegistry::get('Users');
+        $table->belongsTo('Authors', [
+            'targetTable' => $users,
+            'foreignKey' => 'author_id'
+        ]);
+        $result = $table->find()->where(['Articles.id' => 1])->contain('Authors')->first();
+        $this->assertInstanceOf(EntityInterface::class, $result);
+        $this->assertInstanceOf(EntityInterface::class, $result->author);
+        $this->assertSame('mariano', $result->author->username);
+    }
+
+    /**
+     * Tests that eagerloading and hydration works for associations that have
+     * different aliases in the association and targetTable
+     *
+     * @return void
+     */
+    public function testEagerLoadingMismatchingAliasInHasOne()
+    {
+        $this->loadFixtures('Articles', 'Users');
+        $articles = TableRegistry::get('Articles');
+        $users = TableRegistry::get('Users');
+        $users->hasOne('Posts', [
+            'targetTable' => $articles,
+            'foreignKey' => 'author_id'
+        ]);
+        $result = $users->find()->where(['Users.id' => 1])->contain('Posts')->first();
+        $this->assertInstanceOf(EntityInterface::class, $result);
+        $this->assertInstanceOf(EntityInterface::class, $result->post);
+        $this->assertSame('First Article', $result->post->title);
+    }
+
+    /**
      * Tests that eagerloading belongsToMany with find list fails with a helpful message.
      *
      * @expectedException \InvalidArgumentException
@@ -101,6 +173,42 @@ class QueryRegressionTest extends TestCase
             'finder' => 'list'
         ]);
         $table->find()->contain('Tags')->toArray();
+    }
+
+    /**
+     * Tests that eagerloading and hydration works for associations that have
+     * different aliases in the association and targetTable
+     *
+     * @return void
+     */
+    public function testEagerLoadingNestedMatchingCalls()
+    {
+        $this->loadFixtures('Articles', 'Authors', 'Tags', 'ArticlesTags', 'AuthorsTags');
+        $articles = TableRegistry::get('Articles');
+        $articles->belongsToMany('Tags', [
+            'foreignKey' => 'article_id',
+            'targetForeignKey' => 'tag_id',
+            'joinTable' => 'articles_tags'
+        ]);
+        $tags = TableRegistry::get('Tags');
+        $tags->belongsToMany('Authors', [
+            'foreignKey' => 'tag_id',
+            'targetForeignKey' => 'author_id',
+            'joinTable' => 'authors_tags'
+        ]);
+
+        $query = $articles->find()
+            ->matching('Tags', function ($q) {
+                return $q->matching('Authors', function ($q) {
+                    return $q->where(['Authors.name' => 'larry']);
+                });
+            });
+        $this->assertEquals(3, $query->count());
+
+        $result = $query->first();
+        $this->assertInstanceOf(EntityInterface::class, $result);
+        $this->assertInstanceOf(EntityInterface::class, $result->_matchingData['Tags']);
+        $this->assertInstanceOf(EntityInterface::class, $result->_matchingData['Authors']);
     }
 
     /**
@@ -315,7 +423,7 @@ class QueryRegressionTest extends TestCase
     }
 
     /**
-     * Tests that no exceptions are generated becuase of ambiguous column names in queries
+     * Tests that no exceptions are generated because of ambiguous column names in queries
      * during a  save operation
      *
      * @see https://github.com/cakephp/cakephp/issues/3803
@@ -327,9 +435,9 @@ class QueryRegressionTest extends TestCase
         $articles = TableRegistry::get('Articles');
         $articles->belongsTo('Authors');
 
-        $articles->eventManager()->attach(function ($event, $query) {
+        $articles->eventManager()->on('Model.beforeFind', function (Event $event, $query) {
             return $query->contain('Authors');
-        }, 'Model.beforeFind');
+        });
 
         $article = $articles->newEntity();
         $article->title = 'Foo';
@@ -348,13 +456,13 @@ class QueryRegressionTest extends TestCase
         $this->loadFixtures('Articles');
         $articles = TableRegistry::get('Articles');
         $article = $articles->newEntity();
-        $article->title = new \Cake\Database\Expression\QueryExpression("SELECT 'jose'");
+        $article->title = new QueryExpression("SELECT 'jose'");
         $this->assertSame($article, $articles->save($article));
     }
 
     /**
      * Tests that whe saving deep associations for a belongsToMany property,
-     * data is not removed becuase of excesive associations filtering.
+     * data is not removed because of excessive associations filtering.
      *
      * @see https://github.com/cakephp/cakephp/issues/4009
      * @return void
@@ -626,7 +734,7 @@ class QueryRegressionTest extends TestCase
         $query = $table
             ->find()
             ->select(['title', 'id'])
-            ->where("title LIKE :val")
+            ->where('title LIKE :val')
             ->group(['id', 'title'])
             ->bind(':val', '%Second%');
         $count = $query->count();
@@ -644,13 +752,13 @@ class QueryRegressionTest extends TestCase
         $table = TableRegistry::get('Articles');
         $sub = $table->find()
             ->select(['id'])
-            ->where("title LIKE :val")
+            ->where('title LIKE :val')
             ->bind(':val', 'Second %');
 
         $query = $table
             ->find()
             ->select(['title'])
-            ->where(["id NOT IN" => $sub]);
+            ->where(['id NOT IN' => $sub]);
         $result = $query->toArray();
         $this->assertCount(2, $result);
         $this->assertEquals('First Article', $result[0]->title);
@@ -701,8 +809,8 @@ class QueryRegressionTest extends TestCase
         $query = $table->find();
         $query->where([
             'OR' => [
-                new \Cake\Database\Expression\Comparison('id', 1, 'integer', '>'),
-                new \Cake\Database\Expression\Comparison('id', 3, 'integer', '<')
+                new Comparison('id', 1, 'integer', '>'),
+                new Comparison('id', 3, 'integer', '<')
             ]
         ]);
 
@@ -861,7 +969,7 @@ class QueryRegressionTest extends TestCase
      * Tests that trying to contain an inexistent association
      * throws an exception and not a fatal error.
      *
-     * @expectedException InvalidArgumentException
+     * @expectedException \InvalidArgumentException
      * @return void
      */
     public function testQueryNotFatalError()
@@ -945,6 +1053,32 @@ class QueryRegressionTest extends TestCase
             ->combine('id', 'user_id');
 
         $this->assertEquals([3 => 1, 4 => 1, 5 => 1], $results->toArray());
+    }
+
+    /**
+     * Tests that find() and contained associations using computed fields doesn't error out.
+     *
+     * @see https://github.com/cakephp/cakephp/issues/9326
+     * @return void
+     */
+    public function testContainWithComputedField()
+    {
+        $this->loadFixtures('Comments', 'Users');
+        $table = TableRegistry::get('Users');
+        $table->hasMany('Comments');
+
+        $query = $table->find()->contain([
+            'Comments' => function ($q) {
+                return $q->select([
+                    'concat' => $q->func()->concat(['red', 'blue']),
+                    'user_id'
+                ]);
+            }])
+            ->where(['Users.id' => 2]);
+
+        $results = $query->toArray();
+        $this->assertCount(1, $results);
+        $this->assertEquals('redblue', $results[0]->comments[0]->concat);
     }
 
     /**
@@ -1183,6 +1317,148 @@ class QueryRegressionTest extends TestCase
     }
 
     /**
+     * Test that matching queries map types correctly.
+     *
+     * @return void
+     */
+    public function testComplexTypesInJoinedWhereWithMatching()
+    {
+        $this->loadFixtures('Comments', 'Users', 'Articles');
+        $table = TableRegistry::get('Users');
+        $table->hasOne('Comments', [
+            'foreignKey' => 'user_id',
+        ]);
+        $table->Comments->belongsTo('Articles');
+        $table->Comments->Articles->belongsTo('Authors', [
+            'className' => 'Users',
+            'foreignKey' => 'author_id'
+        ]);
+
+        $query = $table->find()
+            ->matching('Comments')
+            ->where([
+                'Comments.updated >' => new \DateTime('2007-03-18 10:55:00')
+            ]);
+
+        $result = $query->first();
+        $this->assertNotEmpty($result);
+        $this->assertInstanceOf('Cake\I18n\Time', $result->_matchingData['Comments']->updated);
+
+        $query = $table->find()
+            ->matching('Comments.Articles.Authors')
+            ->where([
+                'Authors.created >' => new \DateTime('2007-03-17 01:16:00')
+            ]);
+
+        $result = $query->first();
+        $this->assertNotEmpty($result);
+        $this->assertInstanceOf('Cake\I18n\Time', $result->_matchingData['Authors']->updated);
+    }
+
+    /**
+     * Test that notMatching queries map types correctly.
+     *
+     * @return void
+     */
+    public function testComplexTypesInJoinedWhereWithNotMatching()
+    {
+        $this->loadFixtures('Articles', 'Tags', 'ArticlesTags');
+        $Tags = TableRegistry::get('Tags');
+        $Tags->belongsToMany('Articles');
+
+        $query = $Tags->find()
+            ->notMatching('Articles', function ($q) {
+                return $q ->where(['ArticlesTags.tag_id !=' => 3 ]);
+            })
+            ->where([
+                'Tags.created <' => new \DateTime('2016-01-02 00:00:00')
+            ]);
+
+        $result = $query->first();
+        $this->assertNotEmpty($result);
+        $this->assertEquals(3, $result->id);
+        $this->assertInstanceOf('Cake\I18n\Time', $result->created);
+    }
+
+    /**
+     * Test that innerJoinWith queries map types correctly.
+     *
+     * @return void
+     */
+    public function testComplexTypesInJoinedWhereWithInnerJoinWith()
+    {
+        $this->loadFixtures('Comments', 'Users', 'Articles');
+        $table = TableRegistry::get('Users');
+        $table->hasOne('Comments', [
+            'foreignKey' => 'user_id',
+        ]);
+        $table->Comments->belongsTo('Articles');
+        $table->Comments->Articles->belongsTo('Authors', [
+            'className' => 'Users',
+            'foreignKey' => 'author_id'
+        ]);
+
+        $query = $table->find()
+            ->innerJoinWith('Comments')
+            ->where([
+                'Comments.updated >' => new \DateTime('2007-03-18 10:55:00')
+            ]);
+
+        $result = $query->first();
+        $this->assertNotEmpty($result);
+        $this->assertInstanceOf('Cake\I18n\Time', $result->updated);
+
+        $query = $table->find()
+            ->innerJoinWith('Comments.Articles.Authors')
+            ->where([
+                'Authors.created >' => new \DateTime('2007-03-17 01:16:00')
+            ]);
+
+        $result = $query->first();
+        $this->assertNotEmpty($result);
+        $this->assertInstanceOf('Cake\I18n\Time', $result->updated);
+    }
+
+    /**
+     * Test that leftJoinWith queries map types correctly.
+     *
+     * @return void
+     */
+    public function testComplexTypesInJoinedWhereWithLeftJoinWith()
+    {
+        $this->loadFixtures('Comments', 'Users', 'Articles');
+        $table = TableRegistry::get('Users');
+        $table->hasOne('Comments', [
+            'foreignKey' => 'user_id',
+        ]);
+        $table->Comments->belongsTo('Articles');
+        $table->Comments->Articles->belongsTo('Authors', [
+            'className' => 'Users',
+            'foreignKey' => 'author_id'
+        ]);
+
+        $query = $table->find()
+            ->leftJoinWith('Comments')
+            ->where([
+                'Comments.updated >' => new \DateTime('2007-03-18 10:55:00')
+            ]);
+
+        $result = $query->first();
+        $this->assertNotEmpty($result);
+        $this->assertInstanceOf('Cake\I18n\Time', $result->updated);
+
+        $query = $table->find()
+            ->leftJoinWith('Comments.Articles.Authors')
+            ->where([
+                'Authors.created >' => new \DateTime('2007-03-17 01:16:00')
+            ]);
+
+        $result = $query->first();
+        $this->assertNotEmpty($result);
+        $this->assertInstanceOf('Cake\I18n\Time', $result->updated);
+    }
+
+    /**
      * Tests that it is possible to contain to fetch
      * associations off of a junction table.
      *
@@ -1367,5 +1643,64 @@ class QueryRegressionTest extends TestCase
         $query = $table->find();
         $result = $query->where(['updated >' => $query->func()->now('datetime')])->first();
         $this->assertSame(6, $result->id);
+    }
+
+    /**
+     * Tests that `notMatching()` can be used on `belongsToMany`
+     * associations without passing a query builder callback.
+     *
+     * @return void
+     */
+    public function testNotMatchingForBelongsToManyWithoutQueryBuilder()
+    {
+        $this->loadFixtures('Articles', 'Tags', 'ArticlesTags');
+
+        $Articles = TableRegistry::get('Articles');
+        $Articles->belongsToMany('Tags');
+
+        $result = $Articles->find('list')->notMatching('Tags')->toArray();
+        $expected = [
+            3 => 'Third Article'
+        ];
+
+        $this->assertEquals($expected, $result);
+    }
+    /**
+     * Tests deep formatters get the right object type when applied in a beforeFind
+     *
+     * @see https://github.com/cakephp/cakephp/issues/9787
+     * @return void
+     */
+    public function testFormatDeepDistantAssociationRecords2()
+    {
+        $this->loadFixtures('Authors', 'Articles', 'Tags', 'ArticlesTags');
+        $table = TableRegistry::get('authors');
+        $table->hasMany('articles');
+        $articles = $table->association('articles')->target();
+        $articles->hasMany('articlesTags');
+        $tags = $articles->association('articlesTags')->target()->belongsTo('tags');
+
+        $tags->target()->eventManager()->on('Model.beforeFind', function ($e, $query) {
+            return $query->formatResults(function ($results) {
+                return $results->map(function (\Cake\ORM\Entity $tag) {
+                    $tag->name .= ' - visited';
+
+                    return $tag;
+                });
+            });
+        });
+
+        $query = $table->find()->contain(['articles.articlesTags.tags']);
+
+        $query->mapReduce(function ($row, $key, $mr) {
+            foreach ((array)$row->articles as $article) {
+                foreach ((array)$article->articles_tags as $articleTag) {
+                    $mr->emit($articleTag->tag->name);
+                }
+            }
+        });
+
+        $expected = ['tag1 - visited', 'tag2 - visited', 'tag1 - visited', 'tag3 - visited'];
+        $this->assertEquals($expected, $query->toArray());
     }
 }

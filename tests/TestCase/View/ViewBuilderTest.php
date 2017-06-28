@@ -1,20 +1,19 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.1.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\View;
 
-use Cake\Core\Configure;
 use Cake\TestSuite\TestCase;
 use Cake\View\ViewBuilder;
 
@@ -109,20 +108,20 @@ class ViewBuilderTest extends TestCase
      */
     public function testBuildComplete()
     {
-        $request = $this->getMockBuilder('Cake\Network\Request')->getMock();
-        $response = $this->getMockBuilder('Cake\Network\Response')->getMock();
+        $request = $this->getMockBuilder('Cake\Http\ServerRequest')->getMock();
+        $response = $this->getMockBuilder('Cake\Http\Response')->getMock();
         $events = $this->getMockBuilder('Cake\Event\EventManager')->getMock();
 
         $builder = new ViewBuilder();
-        $builder->name('Articles')
-            ->className('Ajax')
-            ->template('edit')
-            ->layout('default')
-            ->templatePath('Articles/')
-            ->helpers(['Form', 'Html'])
-            ->layoutPath('Admin/')
-            ->theme('TestTheme')
-            ->plugin('TestPlugin');
+        $builder->setName('Articles')
+            ->setClassName('Ajax')
+            ->setTemplate('edit')
+            ->setLayout('default')
+            ->setTemplatePath('Articles/')
+            ->setHelpers(['Form', 'Html'])
+            ->setLayoutPath('Admin/')
+            ->setTheme('TestTheme')
+            ->setPlugin('TestPlugin');
         $view = $builder->build(
             ['one' => 'value'],
             $request,
@@ -151,7 +150,7 @@ class ViewBuilderTest extends TestCase
      */
     public function testBuildAppViewMissing()
     {
-        Configure::write('App.namespace', 'Nope');
+        static::setAppNamespace('Nope');
         $builder = new ViewBuilder();
         $view = $builder->build();
         $this->assertInstanceOf('Cake\View\View', $view);
@@ -164,7 +163,7 @@ class ViewBuilderTest extends TestCase
      */
     public function testBuildAppViewPresent()
     {
-        Configure::write('App.namespace', 'TestApp');
+        static::setAppNamespace();
         $builder = new ViewBuilder();
         $view = $builder->build();
         $this->assertInstanceOf('TestApp\View\AppView', $view);
@@ -180,7 +179,7 @@ class ViewBuilderTest extends TestCase
     public function testBuildMissingViewClass()
     {
         $builder = new ViewBuilder();
-        $builder->className('Foo');
+        $builder->setClassName('Foo');
         $builder->build();
     }
 
@@ -194,10 +193,10 @@ class ViewBuilderTest extends TestCase
         $builder = new ViewBuilder();
 
         $builder
-            ->template('default')
-            ->layout('test')
-            ->helpers(['Html'])
-            ->className('JsonView');
+            ->setTemplate('default')
+            ->setLayout('test')
+            ->setHelpers(['Html'])
+            ->setClassName('JsonView');
 
         $result = json_decode(json_encode($builder), true);
 
@@ -223,19 +222,19 @@ class ViewBuilderTest extends TestCase
         $builder = new ViewBuilder();
 
         $builder
-            ->template('default')
-            ->layout('test')
-            ->helpers(['Html'])
-            ->className('JsonView');
+            ->setTemplate('default')
+            ->setLayout('test')
+            ->setHelpers(['Html'])
+            ->setClassName('JsonView');
 
         $result = json_encode($builder);
 
         $builder = new ViewBuilder();
         $builder->createFromArray(json_decode($result, true));
 
-        $this->assertEquals('default', $builder->template());
-        $this->assertEquals('test', $builder->layout());
-        $this->assertEquals(['Html'], $builder->helpers());
-        $this->assertEquals('JsonView', $builder->className());
+        $this->assertEquals('default', $builder->getTemplate());
+        $this->assertEquals('test', $builder->getLayout());
+        $this->assertEquals(['Html'], $builder->getHelpers());
+        $this->assertEquals('JsonView', $builder->getClassName());
     }
 }

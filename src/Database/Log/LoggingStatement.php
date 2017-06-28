@@ -1,16 +1,16 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Database\Log;
 
@@ -28,7 +28,7 @@ class LoggingStatement extends StatementDecorator
     /**
      * Logger instance responsible for actually doing the logging task
      *
-     * @var \Cake\Database\Log\QueryLogger
+     * @var \Cake\Database\Log\QueryLogger|null
      */
     protected $_logger;
 
@@ -110,7 +110,7 @@ class LoggingStatement extends StatementDecorator
      * it returns the currently setup logger instance
      *
      * @param object|null $instance Logger object instance.
-     * @return object Logger instance
+     * @return object|null Logger instance
      */
     public function logger($instance = null)
     {

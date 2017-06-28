@@ -1,23 +1,22 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.3.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Http;
 
-use Cake\Core\Configure;
 use Cake\Http\ControllerFactory;
-use Cake\Network\Request;
-use Cake\Network\Response;
+use Cake\Http\Response;
+use Cake\Http\ServerRequest;
 use Cake\TestSuite\TestCase;
 
 /**
@@ -33,9 +32,9 @@ class ControllerFactoryTest extends TestCase
     public function setUp()
     {
         parent::setUp();
-        Configure::write('App.namespace', 'TestApp');
+        static::setAppNamespace();
         $this->factory = new ControllerFactory();
-        $this->response = $this->getMockBuilder('Cake\Network\Response')->getMock();
+        $this->response = $this->getMockBuilder('Cake\Http\Response')->getMock();
     }
 
     /**
@@ -45,7 +44,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testApplicationController()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'cakes/index',
             'params' => [
                 'controller' => 'Cakes',
@@ -65,7 +64,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testPrefixedAppController()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'admin/posts/index',
             'params' => [
                 'prefix' => 'admin',
@@ -89,7 +88,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testNestedPrefixedAppController()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'admin/sub/posts/index',
             'params' => [
                 'prefix' => 'admin/sub',
@@ -113,7 +112,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testPluginController()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'test_plugin/test_plugin/index',
             'params' => [
                 'plugin' => 'TestPlugin',
@@ -137,7 +136,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testVendorPluginController()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'test_plugin_three/ovens/index',
             'params' => [
                 'plugin' => 'Company/TestPluginThree',
@@ -161,7 +160,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testPrefixedPluginController()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'test_plugin/admin/comments',
             'params' => [
                 'prefix' => 'admin',
@@ -186,7 +185,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testAbstractClassFailure()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'abstract/index',
             'params' => [
                 'controller' => 'Abstract',
@@ -203,7 +202,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testInterfaceFailure()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'interface/index',
             'params' => [
                 'controller' => 'Interface',
@@ -220,7 +219,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testMissingClassFailure()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'interface/index',
             'params' => [
                 'controller' => 'Invisible',
@@ -237,7 +236,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testSlashedControllerFailure()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'admin/posts/index',
             'params' => [
                 'controller' => 'Admin/Posts',
@@ -254,7 +253,7 @@ class ControllerFactoryTest extends TestCase
      */
     public function testAbsoluteReferenceFailure()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'url' => 'interface/index',
             'params' => [
                 'controller' => 'TestApp\Controller\CakesController',

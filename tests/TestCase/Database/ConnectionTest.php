@@ -1,23 +1,25 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Database;
 
-use Cake\Core\Configure;
 use Cake\Database\Connection;
+use Cake\Database\Driver\Mysql;
+use Cake\Database\Exception\NestedTransactionRollbackException;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\TestCase;
+use ReflectionMethod;
 
 /**
  * Tests Connection class
@@ -27,11 +29,25 @@ class ConnectionTest extends TestCase
 
     public $fixtures = ['core.things'];
 
+    /**
+     * Where the NestedTransactionRollbackException was created.
+     *
+     * @var int
+     */
+    protected $rollbackSourceLine = -1;
+
+    /**
+     * Internal states of nested transaction.
+     *
+     * @var array
+     */
+    protected $nestedTransactionStates = [];
+
     public function setUp()
     {
         parent::setUp();
         $this->connection = ConnectionManager::get('test');
-        Configure::write('App.namespace', 'TestApp');
+        static::setAppNamespace();
     }
 
     public function tearDown()
@@ -113,7 +129,7 @@ class ConnectionTest extends TestCase
      */
     public function testDisabledDriver()
     {
-        $mock = $this->getMockBuilder('\Cake\Database\Connection\Driver')
+        $mock = $this->getMockBuilder(Mysql::class)
             ->setMethods(['enabled'])
             ->setMockClassName('DriverMock')
             ->getMock();
@@ -434,17 +450,17 @@ class ConnectionTest extends TestCase
      */
     public function testDeleteWithConditions()
     {
-        $this->connection->delete('things', ['id' => '1-rest-is-ommited'], ['id' => 'integer']);
+        $this->connection->delete('things', ['id' => '1-rest-is-omitted'], ['id' => 'integer']);
         $result = $this->connection->execute('SELECT * FROM things');
         $this->assertCount(1, $result);
         $result->closeCursor();
 
-        $this->connection->delete('things', ['id' => '1-rest-is-ommited'], ['id' => 'integer']);
+        $this->connection->delete('things', ['id' => '1-rest-is-omitted'], ['id' => 'integer']);
         $result = $this->connection->execute('SELECT * FROM things');
         $this->assertCount(1, $result);
         $result->closeCursor();
 
-        $this->connection->delete('things', ['id' => '2-rest-is-ommited'], ['id' => 'integer']);
+        $this->connection->delete('things', ['id' => '2-rest-is-omitted'], ['id' => 'integer']);
         $result = $this->connection->execute('SELECT * FROM things');
         $this->assertCount(0, $result);
         $result->closeCursor();
@@ -477,7 +493,7 @@ class ConnectionTest extends TestCase
      *
      * @return void
      */
-    public function testVirtualNestedTrasanction()
+    public function testVirtualNestedTransaction()
     {
         //starting 3 virtual transaction
         $this->connection->begin();
@@ -501,7 +517,7 @@ class ConnectionTest extends TestCase
      *
      * @return void
      */
-    public function testVirtualNestedTrasanction2()
+    public function testVirtualNestedTransaction2()
     {
         //starting 3 virtual transaction
         $this->connection->begin();
@@ -524,7 +540,7 @@ class ConnectionTest extends TestCase
      * @return void
      */
 
-    public function testVirtualNestedTrasanction3()
+    public function testVirtualNestedTransaction3()
     {
         //starting 3 virtual transaction
         $this->connection->begin();
@@ -988,30 +1004,136 @@ class ConnectionTest extends TestCase
     }
 
     /**
-     * Tests supportsCrossWith
+     * Tests that allowed nesting of commit/rollback operations doesn't
+     * throw any exceptions.
      *
      * @return void
      */
-    public function testSupportsCrossWith()
+    public function testNestedTransactionRollbackExceptionNotThrown()
     {
-        $connection = new Connection(ConnectionManager::config('test'));
-        $targetConnection = new Connection(ConnectionManager::config('test'));
+        $this->connection->transactional(function () {
+            $this->connection->transactional(function () {
+                return true;
+            });
 
-        $this->assertFalse($connection->supportsCrossWith($targetConnection), 'The same connection can\'t used in cross');
+            return true;
+        });
+        $this->assertFalse($this->connection->inTransaction());
 
-        $connection = new Connection(ConnectionManager::config('test'));
-        $targetConnection = new Connection(['name' => 'test2'] + ConnectionManager::config('test'));
+        $this->connection->transactional(function () {
+            $this->connection->transactional(function () {
+                return true;
+            });
 
-        $this->assertTrue($connection->supportsCrossWith($targetConnection), 'Cross should be supported on databases on the same server');
+            return false;
+        });
+        $this->assertFalse($this->connection->inTransaction());
 
-        $connection = new Connection(ConnectionManager::config('test'));
-        $targetConnection = new Connection(['port' => 999999] + ConnectionManager::config('test'));
+        $this->connection->transactional(function () {
+            $this->connection->transactional(function () {
+                return false;
+            });
 
-        $this->assertFalse($connection->supportsCrossWith($targetConnection), 'Cross is not supported across different server instances');
+            return false;
+        });
+        $this->assertFalse($this->connection->inTransaction());
+    }
 
-        $connection = new Connection(ConnectionManager::config('test'));
-        $targetConnection = new Connection(['host' => 'db2.example.com'] + ConnectionManager::config('test'));
+    /**
+     * Tests that not allowed nesting of commit/rollback operations throws
+     * a NestedTransactionRollbackException.
+     *
+     * @return void
+     */
+    public function testNestedTransactionRollbackExceptionThrown()
+    {
+        $this->rollbackSourceLine = -1;
 
-        $this->assertFalse($connection->supportsCrossWith($targetConnection), 'Cross is not supported across different server instances');
+        $e = null;
+        try {
+            $this->connection->transactional(function () {
+                $this->connection->transactional(function () {
+                    return false;
+                });
+                $this->rollbackSourceLine = __LINE__ - 1;
+
+                return true;
+            });
+
+            $this->fail('NestedTransactionRollbackException should be thrown');
+        } catch (NestedTransactionRollbackException $e) {
+        }
+
+        $trace = $e->getTrace();
+        $this->assertEquals(__FILE__, $trace[1]['file']);
+        $this->assertEquals($this->rollbackSourceLine, $trace[1]['line']);
+    }
+
+    /**
+     * Tests more detail about that not allowed nesting of rollback/commit
+     * operations throws a NestedTransactionRollbackException.
+     *
+     * @return void
+     */
+    public function testNestedTransactionStates()
+    {
+        $this->rollbackSourceLine = -1;
+        $this->nestedTransactionStates = [];
+
+        $e = null;
+        try {
+            $this->connection->transactional(function () {
+                $this->pushNestedTransactionState();
+
+                $this->connection->transactional(function () {
+                    return true;
+                });
+
+                $this->connection->transactional(function () {
+                    $this->pushNestedTransactionState();
+
+                    $this->connection->transactional(function () {
+                        return false;
+                    });
+                    $this->rollbackSourceLine = __LINE__ - 1;
+
+                    $this->pushNestedTransactionState();
+
+                    return true;
+                });
+
+                $this->connection->transactional(function () {
+                    return false;
+                });
+
+                $this->pushNestedTransactionState();
+
+                return true;
+            });
+
+            $this->fail('NestedTransactionRollbackException should be thrown');
+        } catch (NestedTransactionRollbackException $e) {
+        }
+
+        $this->pushNestedTransactionState();
+
+        $this->assertSame([false, false, true, true, false], $this->nestedTransactionStates);
+        $this->assertFalse($this->connection->inTransaction());
+
+        $trace = $e->getTrace();
+        $this->assertEquals(__FILE__, $trace[1]['file']);
+        $this->assertEquals($this->rollbackSourceLine, $trace[1]['line']);
+    }
+
+    /**
+     * Helper method to trace nested transaction states.
+     *
+     * @return void
+     */
+    public function pushNestedTransactionState()
+    {
+        $method = new ReflectionMethod($this->connection, 'wasNestedTransactionRolledback');
+        $method->setAccessible(true);
+        $this->nestedTransactionStates[] = $method->invoke($this->connection);
     }
 }

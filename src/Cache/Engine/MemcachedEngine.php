@@ -1,16 +1,16 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         2.5.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Cache\Engine;
 
@@ -36,7 +36,7 @@ class MemcachedEngine extends CacheEngine
      *
      * @var \Memcached
      */
-    protected $_Memcached = null;
+    protected $_Memcached;
 
     /**
      * The default config used unless overridden by runtime configuration
@@ -89,6 +89,11 @@ class MemcachedEngine extends CacheEngine
     protected $_serializers = [];
 
     /**
+     * @var string[]
+     */
+    protected $_compiledGroupNames = [];
+
+    /**
      * Initialize the Cache Engine
      *
      * Called automatically by the cache frontend
@@ -124,7 +129,7 @@ class MemcachedEngine extends CacheEngine
         }
 
         if (isset($config['servers'])) {
-            $this->config('servers', $config['servers'], false);
+            $this->setConfig('servers', $config['servers'], false);
         }
 
         if (!is_array($this->_config['servers'])) {
@@ -271,7 +276,7 @@ class MemcachedEngine extends CacheEngine
      * @param string $key Identifier for the data
      * @param mixed $value Data to be cached
      * @return bool True if the data was successfully cached, false on failure
-     * @see http://php.net/manual/en/memcache.set.php
+     * @see https://secure.php.net/manual/en/memcache.set.php
      */
     public function write($key, $value)
     {

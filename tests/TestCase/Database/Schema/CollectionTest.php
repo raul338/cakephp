@@ -1,21 +1,20 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Database\Schema;
 
 use Cake\Cache\Cache;
-use Cake\Core\Configure;
 use Cake\Database\Schema\Collection;
 use Cake\Datasource\ConnectionManager;
 use Cake\TestSuite\TestCase;
@@ -25,7 +24,14 @@ use Cake\TestSuite\TestCase;
  */
 class CollectionTest extends TestCase
 {
+    /**
+     * @var \Cake\Database\Connection
+     */
+    public $connection;
 
+    /**
+     * @var array
+     */
     public $fixtures = [
         'core.users'
     ];
@@ -77,7 +83,7 @@ class CollectionTest extends TestCase
     public function testDescribeCache()
     {
         $schema = $this->connection->schemaCollection();
-        $table = $this->connection->schemaCollection()->describe('users');
+        $table = $schema->describe('users');
 
         Cache::delete('test_users', '_cake_model_');
         $this->connection->cacheMetadata(true);

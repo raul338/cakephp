@@ -1,20 +1,19 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         2.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\View;
 
-use Cake\Core\Configure;
 use Cake\Core\Plugin;
 use Cake\TestSuite\TestCase;
 use Cake\View\Helper;
@@ -37,6 +36,16 @@ class HtmlAliasHelper extends Helper
  */
 class HelperRegistryTest extends TestCase
 {
+
+    /**
+     * @var \Cake\View\HelperRegistry
+     */
+    public $Helpers;
+
+    /**
+     * @var \Cake\Event\EventManager
+     */
+    public $Events;
 
     /**
      * setUp
@@ -226,7 +235,7 @@ class HelperRegistryTest extends TestCase
      */
     public function testReset()
     {
-        Configure::write('App.namespace', 'TestApp');
+        static::setAppNamespace();
 
         $instance = $this->Helpers->load('EventListenerTest');
         $this->assertSame(
@@ -236,7 +245,7 @@ class HelperRegistryTest extends TestCase
         );
         $this->assertCount(1, $this->Events->listeners('View.beforeRender'));
 
-        $this->assertNull($this->Helpers->reset(), 'No return expected');
+        $this->Helpers->reset();
         $this->assertCount(0, $this->Events->listeners('View.beforeRender'));
 
         $this->assertNotSame($instance, $this->Helpers->load('EventListenerTest'));
@@ -249,7 +258,7 @@ class HelperRegistryTest extends TestCase
      */
     public function testUnload()
     {
-        Configure::write('App.namespace', 'TestApp');
+        static::setAppNamespace();
 
         $instance = $this->Helpers->load('EventListenerTest');
         $this->assertSame(
@@ -308,7 +317,7 @@ class HelperRegistryTest extends TestCase
     /**
      * Loading a helper with different config, should throw an exception
      *
-     * @expectedException RuntimeException
+     * @expectedException \RuntimeException
      * @expectedExceptionMessage The "Html" alias has already been loaded with the following
      * @return void
      */
@@ -321,7 +330,7 @@ class HelperRegistryTest extends TestCase
     /**
      * Loading a helper with different config, should throw an exception
      *
-     * @expectedException RuntimeException
+     * @expectedException \RuntimeException
      * @expectedExceptionMessage The "Html" alias has already been loaded with the following
      * @return void
      */

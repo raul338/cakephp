@@ -1,16 +1,16 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\ORM\Behavior;
 
@@ -45,6 +45,7 @@ class TranslateBehaviorTest extends TestCase
     public $fixtures = [
         'core.articles',
         'core.authors',
+        'core.groups',
         'core.special_tags',
         'core.tags',
         'core.comments',
@@ -317,6 +318,72 @@ class TranslateBehaviorTest extends TestCase
             '_locale' => 'eng'
         ];
         $this->assertEquals($expected, $row->toArray());
+    }
+
+    /**
+     * Tests translationField method for translated fields.
+     *
+     * @return void
+     */
+    public function testTranslationFieldForTranslatedFields()
+    {
+        $table = TableRegistry::get('Articles');
+        $table->addBehavior('Translate', [
+            'fields' => ['title', 'body'],
+            'defaultLocale' => 'en_US'
+        ]);
+
+        $expectedSameLocale = 'Articles.title';
+        $expectedOtherLocale = 'Articles_title_translation.content';
+
+        $field = $table->translationField('title');
+        $this->assertSame($expectedSameLocale, $field);
+
+        I18n::locale('es_ES');
+        $field = $table->translationField('title');
+        $this->assertSame($expectedOtherLocale, $field);
+
+        I18n::locale('en');
+        $field = $table->translationField('title');
+        $this->assertSame($expectedOtherLocale, $field);
+
+        $table->removeBehavior('Translate');
+
+        $table->addBehavior('Translate', [
+            'fields' => ['title', 'body'],
+            'defaultLocale' => 'de_DE'
+        ]);
+
+        I18n::locale('de_DE');
+        $field = $table->translationField('title');
+        $this->assertSame($expectedSameLocale, $field);
+
+        I18n::locale('en_US');
+        $field = $table->translationField('title');
+        $this->assertSame($expectedOtherLocale, $field);
+
+        $table->locale('de_DE');
+        $field = $table->translationField('title');
+        $this->assertSame($expectedSameLocale, $field);
+
+        $table->locale('es');
+        $field = $table->translationField('title');
+        $this->assertSame($expectedOtherLocale, $field);
+    }
+
+    /**
+     * Tests translationField method for other fields.
+     *
+     * @return void
+     */
+    public function testTranslationFieldForOtherFields()
+    {
+        $table = TableRegistry::get('Articles');
+        $table->addBehavior('Translate', ['fields' => ['title', 'body']]);
+
+        $expected = 'Articles.foo';
+        $field = $table->translationField('foo');
+        $this->assertSame($expected, $field);
     }
 
     /**
@@ -757,6 +824,144 @@ class TranslateBehaviorTest extends TestCase
     }
 
     /**
+     * Tests adding new translation to a record
+     *
+     * @return void
+     */
+    public function testAllowEmptyFalse()
+    {
+        $table = TableRegistry::get('Articles');
+        $table->addBehavior('Translate', ['fields' => ['title'], 'allowEmptyTranslations' => false]);
+
+        $article = $table->find()->first();
+        $this->assertEquals(1, $article->get('id'));
+
+        $article = $table->patchEntity($article, [
+            '_translations' => [
+                'fra' => [
+                    'title' => ''
+                ]
+            ]
+        ]);
+
+        $table->save($article);
+
+        // Remove the Behavior to unset the content != '' condition
+        $table->removeBehavior('Translate');
+
+        $noFra = $table->I18n->find()->where(['locale' => 'fra'])->first();
+        $this->assertEmpty($noFra);
+    }
+
+    /**
+     * Tests adding new translation to a record
+     *
+     * @return void
+     */
+    public function testMixedAllowEmptyFalse()
+    {
+        $table = TableRegistry::get('Articles');
+        $table->addBehavior('Translate', ['fields' => ['title', 'body'], 'allowEmptyTranslations' => false]);
+
+        $article = $table->find()->first();
+        $this->assertEquals(1, $article->get('id'));
+
+        $article = $table->patchEntity($article, [
+            '_translations' => [
+                'fra' => [
+                    'title' => '',
+                    'body' => 'Bonjour'
+                ]
+            ]
+        ]);
+
+        $table->save($article);
+
+        $fra = $table->I18n->find()
+            ->where([
+                'locale' => 'fra',
+                'field' => 'body'
+            ])
+            ->first();
+        $this->assertSame('Bonjour', $fra->content);
+
+        // Remove the Behavior to unset the content != '' condition
+        $table->removeBehavior('Translate');
+
+        $noTitle = $table->I18n->find()
+            ->where([
+                'locale' => 'fra',
+                'field' => 'title'
+            ])
+            ->first();
+        $this->assertEmpty($noTitle);
+    }
+
+    /**
+     * Tests adding new translation to a record
+     *
+     * @return void
+     */
+    public function testMultipleAllowEmptyFalse()
+    {
+        $table = TableRegistry::get('Articles');
+        $table->addBehavior('Translate', ['fields' => ['title', 'body'], 'allowEmptyTranslations' => false]);
+
+        $article = $table->find()->first();
+        $this->assertEquals(1, $article->get('id'));
+
+        $article = $table->patchEntity($article, [
+            '_translations' => [
+                'fra' => [
+                    'title' => '',
+                    'body' => 'Bonjour'
+                ],
+                'de' => [
+                    'title' => 'Titel',
+                    'body' => 'Hallo'
+                ]
+            ]
+        ]);
+
+        $table->save($article);
+
+        $fra = $table->I18n->find()
+            ->where([
+                'locale' => 'fra',
+                'field' => 'body'
+            ])
+            ->first();
+        $this->assertSame('Bonjour', $fra->content);
+
+        $deTitle = $table->I18n->find()
+            ->where([
+                'locale' => 'de',
+                'field' => 'title'
+            ])
+            ->first();
+        $this->assertSame('Titel', $deTitle->content);
+
+        $deBody = $table->I18n->find()
+            ->where([
+                'locale' => 'de',
+                'field' => 'body'
+            ])
+            ->first();
+        $this->assertSame('Hallo', $deBody->content);
+
+        // Remove the Behavior to unset the content != '' condition
+        $table->removeBehavior('Translate');
+
+        $noTitle = $table->I18n->find()
+            ->where([
+                'locale' => 'fra',
+                'field' => 'title'
+            ])
+            ->first();
+        $this->assertEmpty($noTitle);
+    }
+
+    /**
      * Tests that it is possible to use the _locale property to specify the language
      * to use for saving an entity
      *
@@ -1144,6 +1349,77 @@ class TranslateBehaviorTest extends TestCase
     }
 
     /**
+     * Tests adding new translation to a record where the only field is the translated one and it's not the default locale
+     *
+     * @return void
+     */
+    public function testSaveNewRecordWithOnlyTranslationsNotDefaultLocale()
+    {
+        $table = TableRegistry::get('Groups');
+        $table->addBehavior('Translate', [
+            'fields' => ['title'],
+            'validator' => (new \Cake\Validation\Validator)->add('title', 'notBlank', ['rule' => 'notBlank'])
+        ]);
+
+        $data = [
+            '_translations' => [
+                'es' => [
+                    'title' => 'Title ES'
+                ]
+            ]
+        ];
+
+        $group = $table->newEntity($data);
+        $result = $table->save($group);
+        $this->assertNotFalse($result, 'Record should save.');
+
+        $expected = [
+            [
+                'es' => [
+                    'title' => 'Title ES',
+                    'locale' => 'es'
+                ]
+            ]
+        ];
+        $result = $table->find('translations')->where(['id' => $result->id]);
+        $this->assertEquals($expected, $this->_extractTranslations($result)->toArray());
+    }
+
+    /**
+     * Test that existing records can be updated when only translations
+     * are modified/dirty.
+     *
+     * @return void
+     */
+    public function testSaveExistingRecordOnlyTranslations()
+    {
+        $table = TableRegistry::get('Articles');
+        $table->addBehavior('Translate', ['fields' => ['title', 'body']]);
+        $table->entityClass(__NAMESPACE__ . '\Article');
+
+        $data = [
+            '_translations' => [
+                'es' => [
+                    'title' => 'Spanish Translation',
+                ],
+            ]
+        ];
+
+        $article = $table->find()->first();
+        $article = $table->patchEntity($article, $data);
+
+        $this->assertNotFalse($table->save($article));
+
+        $results = $this->_extractTranslations(
+            $table->find('translations')->where(['id' => 1])
+        )->first();
+
+        $this->assertArrayHasKey('es', $results, 'New translation added');
+        $this->assertArrayHasKey('eng', $results, 'Old translations present');
+        $this->assertEquals('Spanish Translation', $results['es']['title']);
+    }
+
+    /**
      * Test update entity with _translations field.
      *
      * @return void
@@ -1186,6 +1462,66 @@ class TranslateBehaviorTest extends TestCase
     }
 
     /**
+     * Tests that default locale saves ok.
+     *
+     * @return void
+     */
+    public function testSaveDefaultLocale()
+    {
+        $table = TableRegistry::get('Articles');
+        $table->hasMany('Comments');
+        $table->addBehavior('Translate', ['fields' => ['title', 'body']]);
+
+        $article = $table->get(1);
+        $data = [
+            'title' => 'New title',
+            'body' => 'New body',
+        ];
+        $article = $table->patchEntity($article, $data);
+        $table->save($article);
+        $this->assertNull($article->get('_i18n'));
+
+        $article = $table->get(1);
+        $this->assertEquals('New title', $article->get('title'));
+        $this->assertEquals('New body', $article->get('body'));
+    }
+
+    /**
+     * Tests that translations are added to the whitelist of associations to be
+     * saved
+     *
+     * @return void
+     */
+    public function testSaveTranslationDefaultLocale()
+    {
+        $table = TableRegistry::get('Articles');
+        $table->hasMany('Comments');
+        $table->addBehavior('Translate', ['fields' => ['title', 'body']]);
+
+        $article = $table->get(1);
+        $data = [
+            'title' => 'New title',
+            'body' => 'New body',
+            '_translations' => [
+                'es' => [
+                    'title' => 'ES title',
+                    'body' => 'ES body'
+                ]
+            ]
+        ];
+        $article = $table->patchEntity($article, $data);
+        $table->save($article);
+        $this->assertNull($article->get('_i18n'));
+
+        $article = $table->find('translations')->where(['id' => 1])->first();
+        $this->assertEquals('New title', $article->get('title'));
+        $this->assertEquals('New body', $article->get('body'));
+
+        $this->assertEquals('ES title', $article->_translations['es']->title);
+        $this->assertEquals('ES body', $article->_translations['es']->body);
+    }
+
+    /**
      * Test that no properties are enabled when the translations
      * option is off.
      *
@@ -1198,7 +1534,7 @@ class TranslateBehaviorTest extends TestCase
 
         $marshaller = $table->marshaller();
         $translate = $table->behaviors()->get('Translate');
-        $result = $translate->buildMarhshalMap($marshaller, [], ['translations' => false]);
+        $result = $translate->buildMarshalMap($marshaller, [], ['translations' => false]);
         $this->assertSame([], $result);
     }
 
@@ -1214,11 +1550,11 @@ class TranslateBehaviorTest extends TestCase
         $marshaller = $table->marshaller();
         $translate = $table->behaviors()->get('Translate');
 
-        $result = $translate->buildMarhshalMap($marshaller, [], ['translations' => true]);
+        $result = $translate->buildMarshalMap($marshaller, [], ['translations' => true]);
         $this->assertArrayHasKey('_translations', $result);
         $this->assertInstanceOf('Closure', $result['_translations']);
 
-        $result = $translate->buildMarhshalMap($marshaller, [], []);
+        $result = $translate->buildMarshalMap($marshaller, [], []);
         $this->assertArrayHasKey('_translations', $result);
         $this->assertInstanceOf('Closure', $result['_translations']);
     }
@@ -1234,7 +1570,7 @@ class TranslateBehaviorTest extends TestCase
         $table->addBehavior('Translate', ['fields' => ['title', 'body']]);
         $translate = $table->behaviors()->get('Translate');
 
-        $map = $translate->buildMarhshalMap($table->marshaller(), [], []);
+        $map = $translate->buildMarshalMap($table->marshaller(), [], []);
         $entity = $table->newEntity();
         $result = $map['_translations']('garbage', $entity);
         $this->assertNull($result, 'Non-array should not error out.');
@@ -1253,7 +1589,7 @@ class TranslateBehaviorTest extends TestCase
         $table->addBehavior('Translate', ['fields' => ['title', 'body']]);
         $translate = $table->behaviors()->get('Translate');
 
-        $map = $translate->buildMarhshalMap($table->marshaller(), [], []);
+        $map = $translate->buildMarshalMap($table->marshaller(), [], []);
         $entity = $table->newEntity();
         $data = [
             'en' => [
@@ -1291,7 +1627,7 @@ class TranslateBehaviorTest extends TestCase
         $translate = $table->behaviors()->get('Translate');
 
         $entity = $table->newEntity();
-        $map = $translate->buildMarhshalMap($table->marshaller(), [], []);
+        $map = $translate->buildMarshalMap($table->marshaller(), [], []);
         $data = [
             'en' => [
                 'title' => 'English Title',
@@ -1335,7 +1671,7 @@ class TranslateBehaviorTest extends TestCase
             'es' => $es,
             'en' => $en,
         ]);
-        $map = $translate->buildMarhshalMap($table->marshaller(), [], []);
+        $map = $translate->buildMarshalMap($table->marshaller(), [], []);
         $data = [
             'en' => [
                 'title' => 'English Title',
@@ -1380,7 +1716,7 @@ class TranslateBehaviorTest extends TestCase
             'es' => $es,
             'en' => $en,
         ]);
-        $map = $translate->buildMarhshalMap($table->marshaller(), [], []);
+        $map = $translate->buildMarshalMap($table->marshaller(), [], []);
         $data = [
             'en' => [
                 'title' => 'English Title',

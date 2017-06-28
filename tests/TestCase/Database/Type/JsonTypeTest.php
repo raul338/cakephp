@@ -1,16 +1,16 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.3.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Database\Type;
 
@@ -23,6 +23,15 @@ use PDO;
  */
 class JsonTypeTest extends TestCase
 {
+    /**
+     * @var \Cake\Database\Type\JsonType
+     */
+    public $type;
+
+    /**
+     * @var \Cake\Database\Driver
+     */
+    public $driver;
 
     /**
      * Setup
@@ -64,7 +73,7 @@ class JsonTypeTest extends TestCase
     /**
      * Tests that passing an invalid value will throw an exception
      *
-     * @expectedException InvalidArgumentException
+     * @expectedException \InvalidArgumentException
      * @return void
      */
     public function testToDatabaseInvalid()

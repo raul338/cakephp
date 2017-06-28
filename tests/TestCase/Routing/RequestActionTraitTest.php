@@ -1,21 +1,21 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Routing;
 
 use Cake\Core\Configure;
 use Cake\Core\Plugin;
-use Cake\Network\Request;
+use Cake\Http\ServerRequest;
 use Cake\Routing\DispatcherFactory;
 use Cake\Routing\Router;
 use Cake\TestSuite\TestCase;
@@ -25,7 +25,6 @@ use Cake\Utility\Security;
  */
 class RequestActionTraitTest extends TestCase
 {
-
     /**
      * fixtures
      *
@@ -41,7 +40,7 @@ class RequestActionTraitTest extends TestCase
     public function setUp()
     {
         parent::setUp();
-        Configure::write('App.namespace', 'TestApp');
+        static::setAppNamespace();
         Security::salt('not-the-default');
         DispatcherFactory::add('Routing');
         DispatcherFactory::add('ControllerFactory');
@@ -251,7 +250,7 @@ class RequestActionTraitTest extends TestCase
      */
     public function testRequestActionBaseAndWebroot()
     {
-        $request = new Request([
+        $request = new ServerRequest([
             'base' => '/subdir',
             'webroot' => '/subdir/'
         ]);
@@ -420,5 +419,20 @@ class RequestActionTraitTest extends TestCase
             ['session' => $session]
         );
         $this->assertEquals('bar', $result);
+    }
+
+    /**
+     * requestAction relies on both the RoutingFilter and ControllerFactory
+     * filters being connected. Ensure it can correct the missing state.
+     *
+     * @return void
+     */
+    public function testRequestActionAddsRequiredFilters()
+    {
+        DispatcherFactory::clear();
+
+        $result = $this->object->requestAction('/request_action/test_request_action');
+        $expected = 'This is a test';
+        $this->assertEquals($expected, $result);
     }
 }

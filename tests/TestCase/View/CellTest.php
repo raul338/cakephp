@@ -1,23 +1,24 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         3.0.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\View;
 
 use Cake\Cache\Cache;
-use Cake\Core\Configure;
 use Cake\Core\Plugin;
 use Cake\TestSuite\TestCase;
+use Cake\View\View;
+use TestApp\Controller\CellTraitTestController;
 use TestApp\View\CustomJsonView;
 
 /**
@@ -29,6 +30,11 @@ class CellTest extends TestCase
 {
 
     /**
+     * @var \Cake\View\View
+     */
+    public $View;
+
+    /**
      * setUp method
      *
      * @return void
@@ -36,11 +42,11 @@ class CellTest extends TestCase
     public function setUp()
     {
         parent::setUp();
-        Configure::write('App.namespace', 'TestApp');
+        static::setAppNamespace();
         Plugin::load(['TestPlugin', 'TestTheme']);
-        $request = $this->getMockBuilder('Cake\Network\Request')->getMock();
-        $response = $this->getMockBuilder('Cake\Network\Response')->getMock();
-        $this->View = new \Cake\View\View($request, $response);
+        $request = $this->getMockBuilder('Cake\Http\ServerRequest')->getMock();
+        $response = $this->getMockBuilder('Cake\Http\Response')->getMock();
+        $this->View = new View($request, $response);
     }
 
     /**
@@ -139,7 +145,7 @@ class CellTest extends TestCase
 
         $this->assertContains('This is the alternate template', "{$appCell}");
         $this->assertEquals('alternate_teaser_list', $appCell->template);
-        $this->assertEquals('alternate_teaser_list', $appCell->viewBuilder()->template());
+        $this->assertEquals('alternate_teaser_list', $appCell->viewBuilder()->getTemplate());
     }
 
     /**
@@ -153,7 +159,7 @@ class CellTest extends TestCase
 
         $this->assertContains('Articles subdir custom_template_path template', "{$appCell}");
         $this->assertEquals('custom_template_path', $appCell->template);
-        $this->assertEquals('Cell/Articles/Subdir', $appCell->viewBuilder()->templatePath());
+        $this->assertEquals('Cell/Articles/Subdir', $appCell->viewBuilder()->getTemplatePath());
     }
 
     /**
@@ -166,7 +172,7 @@ class CellTest extends TestCase
         $appCell = $this->View->cell('Articles::customTemplateViewBuilder');
 
         $this->assertContains('This is the alternate template', "{$appCell}");
-        $this->assertEquals('alternate_teaser_list', $appCell->viewBuilder()->template());
+        $this->assertEquals('alternate_teaser_list', $appCell->viewBuilder()->getTemplate());
     }
 
     /**
@@ -205,9 +211,9 @@ class CellTest extends TestCase
         $this->View->theme = 'TestTheme';
         $cell = $this->View->cell('Articles', ['msg' => 'hello world!']);
 
-        $this->assertEquals($this->View->theme, $cell->viewBuilder()->theme());
+        $this->assertEquals($this->View->theme, $cell->viewBuilder()->getTheme());
         $this->assertContains('Themed cell content.', $cell->render());
-        $this->assertEquals($cell->View->theme, $cell->viewBuilder()->theme());
+        $this->assertEquals($cell->View->theme, $cell->viewBuilder()->getTheme());
     }
 
     /**
@@ -289,12 +295,12 @@ class CellTest extends TestCase
     }
 
     /**
-     * Tests that using an unexisting cell throws an exception.
+     * Tests that using an non-existent cell throws an exception.
      *
      * @expectedException \Cake\View\Exception\MissingCellException
      * @return void
      */
-    public function testUnexistingCell()
+    public function testNonExistentCell()
     {
         $cell = $this->View->cell('TestPlugin.Void::echoThis', ['arg1' => 'v1']);
         $cell = $this->View->cell('Void::echoThis', ['arg1' => 'v1', 'arg2' => 'v2']);
@@ -344,11 +350,32 @@ class CellTest extends TestCase
      */
     public function testCellInheritsCustomViewClass()
     {
-        $request = $this->getMockBuilder('Cake\Network\Request')->getMock();
-        $response = $this->getMockBuilder('Cake\Network\Response')->getMock();
+        $request = $this->getMockBuilder('Cake\Http\ServerRequest')->getMock();
+        $response = $this->getMockBuilder('Cake\Http\Response')->getMock();
         $view = new CustomJsonView($request, $response);
+        $view->theme = 'Pretty';
         $cell = $view->cell('Articles');
         $this->assertSame('TestApp\View\CustomJsonView', $cell->viewClass);
+        $this->assertSame('TestApp\View\CustomJsonView', $cell->viewBuilder()->getClassName());
+        $this->assertSame('Pretty', $cell->viewBuilder()->getTheme());
+    }
+
+    /**
+     * Test that cells the view class name of a controller passed on.
+     *
+     * @return void
+     */
+    public function testCellInheritsController()
+    {
+        $request = $this->getMockBuilder('Cake\Http\ServerRequest')->getMock();
+        $response = $this->getMockBuilder('Cake\Http\Response')->getMock();
+        $controller = new CellTraitTestController($request, $response);
+        $controller->viewBuilder()->setTheme('Pretty');
+        $controller->viewClass = 'Json';
+        $cell = $controller->cell('Articles');
+        $this->assertSame('Json', $cell->viewClass);
+        $this->assertSame('Json', $cell->viewBuilder()->getClassName());
+        $this->assertSame('Pretty', $cell->viewBuilder()->getTheme());
     }
 
     /**
@@ -365,7 +392,7 @@ class CellTest extends TestCase
             ->will($this->returnValue(false));
         $mock->expects($this->once())
             ->method('write')
-            ->with('cell_test_app_view_cell_articles_cell_display', "dummy\n");
+            ->with('cell_test_app_view_cell_articles_cell_display_default', "dummy\n");
         Cache::config('default', $mock);
 
         $cell = $this->View->cell('Articles', [], ['cache' => true]);
@@ -435,7 +462,7 @@ class CellTest extends TestCase
             ->will($this->returnValue(false));
         $mock->expects($this->once())
             ->method('write')
-            ->with('cell_test_app_view_cell_articles_cell_customTemplate', "<h1>This is the alternate template</h1>\n");
+            ->with('cell_test_app_view_cell_articles_cell_customTemplate_default', "<h1>This is the alternate template</h1>\n");
         Cache::config('default', $mock);
 
         $cell = $this->View->cell('Articles::customTemplate', [], ['cache' => true]);
@@ -463,6 +490,27 @@ class CellTest extends TestCase
         $cell->render();
         $this->assertEquals(1, $cell->counter);
         $this->assertContains('This is the alternate template', $result);
+        Cache::delete('celltest');
+        Cache::drop('default');
+    }
+
+    /**
+     * Test that when the cell cache is enabled, the cell action is only invoke the first
+     * time the cell is rendered
+     *
+     * @return void
+     */
+    public function testACachedViewCellReRendersWhenGivenADifferentTemplate()
+    {
+        Cache::config('default', [
+            'className' => 'File',
+            'path' => CACHE,
+        ]);
+        $cell = $this->View->cell('Articles::customTemplateViewBuilder', [], ['cache' => true]);
+        $result = $cell->render('alternate_teaser_list');
+        $result2 = $cell->render('not_the_alternate_teaser_list');
+        $this->assertContains('This is the alternate template', $result);
+        $this->assertContains('This is NOT the alternate template', $result2);
         Cache::delete('celltest');
         Cache::drop('default');
     }

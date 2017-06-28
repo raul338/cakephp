@@ -1,16 +1,16 @@
 <?php
 /**
- * CakePHP(tm) : Rapid Development Framework (http://cakephp.org)
- * Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
+ * CakePHP(tm) : Rapid Development Framework (https://cakephp.org)
+ * Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
  *
  * Licensed under The MIT License
  * For full copyright and license information, please see the LICENSE.txt
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @link          http://cakephp.org CakePHP(tm) Project
+ * @copyright     Copyright (c) Cake Software Foundation, Inc. (https://cakefoundation.org)
+ * @link          https://cakephp.org CakePHP(tm) Project
  * @since         2.2.0
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * @license       https://opensource.org/licenses/mit-license.php MIT License
  */
 namespace Cake\Test\TestCase\Utility;
 
@@ -394,6 +394,20 @@ class HashTest extends TestCase
     }
 
     /**
+     * Test that get() can extract '' key data.
+     *
+     * @return void
+     */
+    public function testGetEmptyKey()
+    {
+        $data = [
+            '' => 'some value'
+        ];
+        $result = Hash::get($data, '');
+        $this->assertSame($data[''], $result);
+    }
+
+    /**
      * Test get() for invalid $data type
      *
      * @expectedException \InvalidArgumentException
@@ -456,19 +470,19 @@ class HashTest extends TestCase
     {
         $data = [];
         $result = Hash::maxDimensions($data);
-        $this->assertEquals(0, $result);
+        $this->assertSame(0, $result);
 
         $data = ['a', 'b'];
         $result = Hash::maxDimensions($data);
-        $this->assertEquals(1, $result);
+        $this->assertSame(1, $result);
 
         $data = ['1' => '1.1', '2', '3' => ['3.1' => '3.1.1']];
         $result = Hash::maxDimensions($data);
-        $this->assertEquals($result, 2);
+        $this->assertSame(2, $result);
 
         $data = ['1' => ['1.1' => '1.1.1'], '2', '3' => ['3.1' => ['3.1.1' => '3.1.1.1']]];
         $result = Hash::maxDimensions($data);
-        $this->assertEquals($result, 3);
+        $this->assertSame(3, $result);
 
         $data = [
             '1' => ['1.1' => '1.1.1'],
@@ -476,7 +490,7 @@ class HashTest extends TestCase
             '3' => ['3.1' => ['3.1.1' => '3.1.1.1']]
         ];
         $result = Hash::maxDimensions($data);
-        $this->assertEquals($result, 4);
+        $this->assertSame(4, $result);
 
         $data = [
            '1' => [
@@ -491,7 +505,14 @@ class HashTest extends TestCase
            '2' => ['2.1' => '2.1.1']
         ];
         $result = Hash::maxDimensions($data);
-        $this->assertEquals($result, 5);
+        $this->assertSame(5, $result);
+
+        $data = [
+           '1' => false,
+           '2' => ['2.1' => '2.1.1']
+        ];
+        $result = Hash::maxDimensions($data);
+        $this->assertSame(2, $result);
     }
 
     /**
@@ -836,8 +857,21 @@ class HashTest extends TestCase
      */
     public function testFilter()
     {
-        $result = Hash::filter(['0', false, true, 0, ['one thing', 'I can tell you', 'is you got to be', false]]);
-        $expected = ['0', 2 => true, 3 => 0, 4 => ['one thing', 'I can tell you', 'is you got to be']];
+        $result = Hash::filter([
+            '0',
+            false,
+            true,
+            0,
+            0.0,
+            ['one thing', 'I can tell you', 'is you got to be', false]
+        ]);
+        $expected = [
+            0 => '0',
+            2 => true,
+            3 => 0,
+            4 => 0.0,
+            5 => ['one thing', 'I can tell you', 'is you got to be']
+        ];
         $this->assertSame($expected, $result);
 
         $result = Hash::filter([1, [false]]);
@@ -903,7 +937,7 @@ class HashTest extends TestCase
     /**
      * Test passing invalid argument type
      *
-     * @expectedException InvalidArgumentException
+     * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Invalid data type, must be an array or \ArrayAccess instance.
      * @return void
      */
@@ -1678,6 +1712,39 @@ class HashTest extends TestCase
     }
 
     /**
+     * Test sort() with locale option.
+     *
+     * @return void
+     */
+    public function testSortLocale()
+    {
+        // get the current locale
+        $oldLocale = setlocale(LC_COLLATE, '0');
+
+        $updated = setlocale(LC_COLLATE, 'de_DE.utf8');
+        $this->skipIf($updated === false, 'Could not set locale to de_DE.utf8, skipping test.');
+
+        $items = [
+            ['Item' => ['entry' => 'Übergabe']],
+            ['Item' => ['entry' => 'Ostfriesland']],
+            ['Item' => ['entry' => 'Äpfel']],
+            ['Item' => ['entry' => 'Apfel']],
+        ];
+
+        $result = Hash::sort($items, '{n}.Item.entry', 'asc', 'locale');
+        $expected = [
+            ['Item' => ['entry' => 'Apfel']],
+            ['Item' => ['entry' => 'Äpfel']],
+            ['Item' => ['entry' => 'Ostfriesland']],
+            ['Item' => ['entry' => 'Übergabe']],
+        ];
+        $this->assertEquals($expected, $result);
+
+        // change to the original locale
+        setlocale(LC_COLLATE, $oldLocale);
+    }
+
+    /**
      * Test that sort() with 'natural' type will fallback to 'regular' as SORT_NATURAL is introduced in PHP 5.4
      *
      * @return void
@@ -1761,7 +1828,6 @@ class HashTest extends TestCase
         $result = Hash::sort($menus, '{s}.weight', 'ASC');
         $this->assertEquals($expected, $result);
     }
-
 
     /**
      * test sorting with string ignoring case.
@@ -2121,7 +2187,7 @@ class HashTest extends TestCase
     public function testCombine()
     {
         $result = Hash::combine([], '{n}.User.id', '{n}.User.Data');
-        $this->assertTrue(empty($result));
+        $this->assertEmpty($result);
 
         $a = static::userData();
 

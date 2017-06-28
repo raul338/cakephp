@@ -1,4 +1,5 @@
 This is a (multiple allowed):
+
 * [x] bug
 * [ ] enhancement
 * [ ] feature-discussion (RFC)
@@ -9,13 +10,13 @@ This is a (multiple allowed):
 ### What you did
 EXPLAIN WHAT YOU DID, PREFERABLY WITH CODE EXAMPLES, HERE.
 
-### Expected Behavior
-EXPLAIN WHAT IS TO BE EXPECTED, HERE.
-
-### Actual Behavior
+### What happened
 EXPLAIN WHAT IS ACTUALLY HAPPENING, HERE.
 
-P.S. Remember, an issue is not the place to ask questions. You can use [Stack Overflow](http://stackoverflow.com/questions/tagged/cakephp)
+### What you expected to happen
+EXPLAIN WHAT IS TO BE EXPECTED, HERE.
+
+P.S. Remember, an issue is not the place to ask questions. You can use [Stack Overflow](https://stackoverflow.com/questions/tagged/cakephp)
 for that or join the #cakephp channel on irc.freenode.net, where we will be more
 than happy to help answer your questions.
 
